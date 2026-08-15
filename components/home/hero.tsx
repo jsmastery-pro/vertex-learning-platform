@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { SearchForm } from "@/components/search/search-form";
 import { buttonClasses } from "@/components/ui/button";
-import { SearchInput } from "@/components/ui/search-input";
 
 export function Hero() {
   return (
@@ -27,12 +27,12 @@ export function Hero() {
         <ArrowRight className="size-5" strokeWidth={2} aria-hidden />
       </Link>
 
-      <SearchInput
+      <SearchForm
         id="home-search"
         size="lg"
         label="Ask anything about your learning"
         placeholder="Ask anything about your learning..."
-        className="mt-11 max-w-225"
+        className="mt-11 w-full max-w-225"
       />
     </section>
   );
