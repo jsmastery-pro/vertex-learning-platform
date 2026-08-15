@@ -14,8 +14,9 @@ import {
  * How far into the lesson a learner got, estimated from wall-clock time.
  *
  * Playback is a provider iframe (AGENTS.md §7 — no custom player), which emits nothing we can read.
- * So depth is time-since-play, offset by the second a deep link opened at, over the lesson's stored
- * duration. That means a pause, a seek, or a speed change is invisible to us, and a learner who
+ * So depth is time-since-play over the lesson's stored duration — elapsed playback only, so a deep
+ * link never credits time nobody watched. That means a pause, a seek, or a speed change is
+ * invisible to us, and a learner who
  * presses play and walks away still counts as watching. The one thing worth correcting for is
  * cheap — time spent on another tab does not count — and every event says
  * `measurement: "elapsed_time"` so the estimate is never mistaken for player truth.
@@ -86,11 +87,13 @@ export function useWatchDepth({
       const elapsedMs = watchedMs + (segmentStartedAt === null ? 0 : Date.now() - segmentStartedAt);
       const { lessonSlug, courseSlug, lessonLabel, provider, startSeconds } = context.current;
 
-      const positionSeconds = Math.min(
-        totalSeconds,
-        startSeconds + Math.round(elapsedMs / 1000),
-      );
-      const percentWatched = Math.min(100, Math.round((positionSeconds / totalSeconds) * 100));
+      const watchedSeconds = Math.round(elapsedMs / 1000);
+      // Where playback is, for reporting: the deep-link offset counts here.
+      const positionSeconds = Math.min(totalSeconds, startSeconds + watchedSeconds);
+      // How much was actually watched: it does not. Opening at `?t=` half way through means the
+      // learner has watched nothing yet, and crediting them 50% would fire milestones — and
+      // `lesson_completed` — for a video nobody sat through.
+      const percentWatched = Math.min(100, Math.round((watchedSeconds / totalSeconds) * 100));
 
       for (const milestone of WATCH_DEPTH_MILESTONES) {
         if (percentWatched < milestone || reportedMilestones.current.has(milestone)) continue;

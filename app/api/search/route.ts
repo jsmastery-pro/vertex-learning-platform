@@ -98,10 +98,21 @@ export async function POST(request: NextRequest) {
       results,
     };
 
-    await captureSearch(response, analytics, Date.now() - startedAt);
+    try {
+      await captureSearch(response, analytics, Date.now() - startedAt);
+    } catch (error) {
+      // Telemetry is never worth failing a search the learner already got results for.
+      console.error("[api/search] failed to capture search_performed", error);
+    }
 
     return Response.json(response);
   } catch (error) {
+    // A learner who navigated away is not a failure. The abort is expected, so it is neither logged
+    // as an error nor counted as an upstream outage in PostHog.
+    if (request.signal.aborted) {
+      return errorResponse(499, "Search was cancelled.");
+    }
+
     // The message can carry the MCP URL or a provider payload, so it is logged, never returned.
     console.error("[api/search]", error);
 

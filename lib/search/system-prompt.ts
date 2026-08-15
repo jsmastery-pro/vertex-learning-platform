@@ -68,9 +68,11 @@ Query rules:
   the projection and take at most three matches per video.
 - If \`text::semanticSimilarity()\` errors with embeddings not enabled, fall back to wildcard keyword
   matching and do not retry it.
-- Every lesson video has a \`video\` document. **Always run the video lookup as well as the lesson
-  lookup** — a search that only queries \`lesson\` is an incomplete search. Set \`startSeconds\` only
-  from a chapter or chunk the lookup actually returned; never estimate one.
+- **Always run the video lookup as well as the lesson lookup** — a search that only queries
+  \`lesson\` is an incomplete search. Not every lesson video has a \`video\` document, so the lookup
+  may return nothing for a lesson; when it does, return that lesson as a lesson hit with no
+  timestamp. Set \`startSeconds\` only from a chapter or chunk the lookup actually returned; never
+  estimate one.
 
 # Ranking
 

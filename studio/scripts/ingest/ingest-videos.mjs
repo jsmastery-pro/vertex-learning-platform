@@ -48,7 +48,14 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const args = process.argv.slice(2)
 const force = args.includes('--force')
 const limitArg = args.find((arg) => arg.startsWith('--limit='))
-const limit = limitArg ? Number(limitArg.split('=')[1]) : null
+const limit = limitArg ? Number(limitArg.slice('--limit='.length)) : null
+
+// A malformed `--limit=` is a typo, not a request to fetch everything. Bail rather than quietly
+// running the full catalogue against someone who asked for a smoke run.
+if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
+  console.error(`Invalid ${limitArg} — expected a positive integer, e.g. --limit=3.`)
+  process.exit(1)
+}
 
 /* ------------------------------------------------------------------ cache */
 
@@ -119,11 +126,11 @@ for (const url of urls) {
 }
 
 const pending = videos.filter((video) => force || !readCache(video.documentId))
-const queue = limit ? pending.slice(0, limit) : pending
+const queue = limit === null ? pending : pending.slice(0, limit)
 
 console.log(
   `${urls.length} lesson video URL(s), ${videos.length} unique ingestible video(s), ` +
-    `${pending.length} to fetch${limit ? ` (limited to ${queue.length})` : ''}.`,
+    `${pending.length} to fetch${limit === null ? '' : ` (limited to ${queue.length})`}.`,
 )
 
 const failures = []
@@ -146,6 +153,10 @@ for (const [index, video] of queue.entries()) {
           url: video.url,
           chapters,
           chunks,
+          // Stamped per video, at the moment it was actually fetched. build-ndjson.mjs copies this
+          // straight through, so a video that did not change keeps its timestamp and produces no
+          // diff on the next import.
+          ingestedAt: new Date().toISOString(),
         },
         null,
         2,

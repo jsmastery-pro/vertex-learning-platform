@@ -34,12 +34,6 @@ if (!files.length) {
   process.exit(1)
 }
 
-/**
- * One timestamp for the whole run. `ingestedAt` marks when the pipeline last wrote the document,
- * and stamping each one separately would churn the diff for videos that did not change.
- */
-const ingestedAt = new Date().toISOString()
-
 const problems = []
 const check = (condition, message) => {
   if (!condition) problems.push(message)
@@ -71,6 +65,14 @@ for (const file of files) {
   const chunks = Array.isArray(cached.chunks) ? cached.chunks : []
 
   check(chunks.length > 0, `${where}: no transcript chunks`)
+
+  // `ingestedAt` comes from the cache entry, stamped when that video was actually fetched. Minting
+  // one per build instead would restamp every document on every run and churn the import diff for
+  // videos that did not change.
+  check(
+    typeof cached.ingestedAt === 'string' && !Number.isNaN(Date.parse(cached.ingestedAt)),
+    `${where}: missing or invalid ingestedAt — re-run scripts/ingest/ingest-videos.mjs for it`,
+  )
 
   let previousChapter = -1
   chapters.forEach((chapter, index) => {
@@ -112,7 +114,7 @@ for (const file of files) {
       startSeconds: chunk.startSeconds,
       text: chunk.text.trim(),
     })),
-    ingestedAt,
+    ingestedAt: cached.ingestedAt,
   })
 }
 
