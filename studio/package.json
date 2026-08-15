@@ -12,7 +12,10 @@
     "seed:videos": "node scripts/seed/resolve-videos.mjs",
     "seed:build": "node scripts/seed/build-ndjson.mjs",
     "seed:import": "sanity dataset import scripts/seed/seed.ndjson --dataset production --replace",
-    "context:import": "sanity dataset import scripts/context/vertex-search.ndjson --dataset production --replace"
+    "context:import": "sanity dataset import scripts/context/vertex-search.ndjson --dataset production --replace",
+    "ingest:videos": "node scripts/ingest/ingest-videos.mjs",
+    "ingest:build": "node scripts/ingest/build-ndjson.mjs",
+    "ingest:import": "sanity dataset import scripts/ingest/videos.ndjson --dataset production --replace"
   },
   "dependencies": {
     "@sanity/icons": "^5.2.1",

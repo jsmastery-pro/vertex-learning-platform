@@ -137,6 +137,7 @@ export const LESSONS_BY_IDS_QUERY = defineQuery(`
     "course": *[_type == "course" && references(^._id)][0]{
       title,
       "slug": slug.current,
+      "iconRef": coverImage.asset._ref,
       modules[]{
         _key,
         title,

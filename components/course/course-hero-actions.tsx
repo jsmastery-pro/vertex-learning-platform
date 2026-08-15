@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowRight, Bookmark } from "lucide-react";
-import Link from "next/link";
+import { Bookmark } from "lucide-react";
 import posthog from "posthog-js";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { CourseResumeLink } from "@/components/course/course-resume-link";
+import { Button } from "@/components/ui/button";
 
 interface CourseHeroActionsProps {
   /** Href for the first lesson; null when the curriculum is empty. */
@@ -20,18 +20,13 @@ export function CourseHeroActions({ continueHref, courseSlug }: CourseHeroAction
   return (
     <div className="mt-8 flex flex-wrap items-center gap-4">
       {continueHref && (
-        <Link
+        <CourseResumeLink
           href={continueHref}
-          className={buttonClasses({ className: "h-14 px-6 text-[16px]" })}
-          onClick={() =>
-            posthog.capture("course_started", {
-              course_slug: courseSlug,
-            })
-          }
-        >
-          Continue Learning
-          <ArrowRight className="size-5" strokeWidth={2} aria-hidden />
-        </Link>
+          courseSlug={courseSlug}
+          location="hero"
+          percentComplete={0}
+          className="h-14 px-6 text-[16px]"
+        />
       )}
       <Button
         type="button"

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ViewTracker } from "@/components/analytics/view-tracker";
 import { CourseGrid } from "@/components/cards/course-grid";
 import { ChartDecoration } from "@/components/home/chart-decoration";
 import { PageFrame } from "@/components/layout/page-frame";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Breadcrumbs } from "@/components/nav/breadcrumbs";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { pluralize } from "@/lib/format";
 import { coursesHref } from "@/lib/routes";
 import { CACHE_TAGS, sanityFetch } from "@/sanity/lib/fetch";
@@ -24,6 +26,11 @@ export default async function CoursesPage() {
   return (
     <PageFrame>
       <SiteHeader activeHref={coursesHref} />
+
+      <ViewTracker
+        event={ANALYTICS_EVENTS.catalogViewed}
+        properties={{ course_count: courses.length }}
+      />
 
       <main className="flex flex-1 flex-col px-6 pt-11 pb-16 sm:px-12 xl:px-18 xl:pb-20">
         <Breadcrumbs items={[{ label: "All Courses" }]} />

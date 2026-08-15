@@ -1,6 +1,4 @@
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
-import { buttonClasses } from "@/components/ui/button";
+import { CourseResumeLink } from "@/components/course/course-resume-link";
 import { cn } from "@/lib/utils";
 
 interface CourseProgressBarProps {
@@ -8,6 +6,8 @@ interface CourseProgressBarProps {
   percentComplete: number;
   /** Where "Continue Learning" goes — the resume position once progress exists. */
   continueHref: string | null;
+  /** Carried onto the resume event. */
+  courseSlug: string;
   className?: string;
 }
 
@@ -18,6 +18,7 @@ interface CourseProgressBarProps {
 export function CourseProgressBar({
   percentComplete,
   continueHref,
+  courseSlug,
   className,
 }: CourseProgressBarProps) {
   const value = Math.min(100, Math.max(0, Math.round(percentComplete)));
@@ -49,13 +50,13 @@ export function CourseProgressBar({
       </div>
 
       {continueHref && (
-        <Link
+        <CourseResumeLink
           href={continueHref}
-          className={buttonClasses({ className: "h-14 shrink-0 px-6 text-[16px]" })}
-        >
-          Continue Learning
-          <ArrowRight className="size-5" strokeWidth={2} aria-hidden />
-        </Link>
+          courseSlug={courseSlug}
+          location="progress_bar"
+          percentComplete={value}
+          className="h-14 shrink-0 px-6 text-[16px]"
+        />
       )}
     </div>
   );

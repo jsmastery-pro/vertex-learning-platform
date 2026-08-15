@@ -125,6 +125,7 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/l
               lessonSlug={slug}
               lessonLabel={curriculum.current?.label ?? null}
               courseSlug={course?.slug ?? null}
+              startSeconds={startSeconds}
             />
 
             <LessonHeader
@@ -140,6 +141,8 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/l
             <LessonVideo
               lessonTitle={lesson.title ?? "Lesson"}
               lessonSlug={slug}
+              courseSlug={course?.slug ?? null}
+              lessonLabel={curriculum.current?.label ?? null}
               video={parseVideoUrl(lesson.videoUrl)}
               posterUrl={
                 lesson.thumbnail?.asset
@@ -148,6 +151,7 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/l
               }
               posterAlt={lesson.thumbnail?.alt ?? lesson.title ?? ""}
               startSeconds={startSeconds}
+              durationSeconds={lesson.duration}
             />
 
             <LessonTabs lessonSlug={slug}>
@@ -188,7 +192,11 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/l
       </div>
 
       {/* Spans both columns, as in the reference. */}
-      <LessonFooterNav previous={curriculum.previous} next={curriculum.next} />
+      <LessonFooterNav
+        previous={curriculum.previous}
+        next={curriculum.next}
+        currentLessonSlug={slug}
+      />
     </PageFrame>
   );
 }

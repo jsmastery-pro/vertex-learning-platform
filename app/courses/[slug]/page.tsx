@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ViewTracker } from "@/components/analytics/view-tracker";
 import { CourseContent } from "@/components/course/course-content";
 import { CourseHero } from "@/components/course/course-hero";
 import { CourseProgressBar } from "@/components/course/course-progress-bar";
@@ -8,6 +9,7 @@ import { ChartDecoration } from "@/components/home/chart-decoration";
 import { PageFrame } from "@/components/layout/page-frame";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Breadcrumbs } from "@/components/nav/breadcrumbs";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { coursesHref, lessonHref } from "@/lib/routes";
 import { CACHE_TAGS, sanityFetch } from "@/sanity/lib/fetch";
 import { COURSE_BY_SLUG_QUERY, COURSE_SLUGS_QUERY } from "@/sanity/lib/queries";
@@ -59,6 +61,17 @@ export default async function CoursePage({ params }: PageProps<"/courses/[slug]"
     <PageFrame>
       <SiteHeader activeHref={coursesHref} />
 
+      <ViewTracker
+        event={ANALYTICS_EVENTS.courseViewed}
+        viewKey={slug}
+        properties={{
+          course_slug: slug,
+          module_count: modules.length,
+          lesson_count: modules.reduce((total, module) => total + (module.lessons?.length ?? 0), 0),
+          level: course.level ?? null,
+        }}
+      />
+
       <main className="relative flex flex-1 flex-col px-6 pt-11 pb-8 sm:px-12 xl:px-18">
         <Breadcrumbs
           items={[
@@ -77,7 +90,12 @@ export default async function CoursePage({ params }: PageProps<"/courses/[slug]"
           )}
         </div>
 
-        <CourseProgressBar percentComplete={0} continueHref={continueHref} className="mt-14" />
+        <CourseProgressBar
+          percentComplete={0}
+          continueHref={continueHref}
+          courseSlug={slug}
+          className="mt-14"
+        />
       </main>
 
       <ChartDecoration />

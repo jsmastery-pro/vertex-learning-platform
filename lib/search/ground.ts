@@ -58,6 +58,7 @@ export async function groundHits(hits: ModelHit[], sort: SearchSort): Promise<Se
       moduleTitle: modules[moduleIndex].title ?? null,
       courseTitle: lesson.course.title,
       courseSlug: lesson.course.slug,
+      courseIconRef: lesson.course.iconRef ?? null,
       durationSeconds: lesson.duration ?? null,
       freePreview: lesson.freePreview ?? false,
       keyPoints: lesson.keyPoints ?? [],

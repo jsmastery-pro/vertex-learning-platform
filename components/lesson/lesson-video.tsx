@@ -4,12 +4,17 @@ import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
 import Image from "next/image";
 import posthog from "posthog-js";
+import { ANALYTICS_EVENTS, type VideoPlaySource } from "@/lib/analytics/events";
+import { useWatchDepth } from "@/components/lesson/use-watch-depth";
 import { formatTimestamp } from "@/lib/format";
 import { type ParsedVideo, videoEmbedUrl, videoProviderLabel } from "@/lib/video";
 
 interface LessonVideoProps {
   lessonTitle: string;
   lessonSlug: string;
+  courseSlug: string | null;
+  /** The derived "5.1" label, carried onto the completion event. */
+  lessonLabel: string | null;
   /** Parsed on the server; null when the stored URL is not an embeddable provider URL. */
   video: ParsedVideo | null;
   /** Pre-sized poster URL from the lesson thumbnail. */
@@ -17,6 +22,8 @@ interface LessonVideoProps {
   posterAlt: string;
   /** Second to open at, from `?t=` — already clamped to the lesson duration on the server. */
   startSeconds: number;
+  /** The lesson's stored runtime, which watch depth is measured against. */
+  durationSeconds: number | null;
 }
 
 /**
@@ -27,30 +34,49 @@ interface LessonVideoProps {
 export function LessonVideo({
   lessonTitle,
   lessonSlug,
+  courseSlug,
+  lessonLabel,
   video,
   posterUrl,
   posterAlt,
   startSeconds,
+  durationSeconds,
 }: LessonVideoProps) {
   const deepLinked = Boolean(video) && startSeconds > 0;
   const [isPlaying, setIsPlaying] = useState(deepLinked);
 
+  const capturePlay = (source: VideoPlaySource) => {
+    posthog.capture(ANALYTICS_EVENTS.videoPlayed, {
+      lesson_slug: lessonSlug,
+      course_slug: courseSlug,
+      provider: video?.provider ?? null,
+      start_seconds: startSeconds,
+      duration_seconds: durationSeconds,
+      source,
+    });
+  };
+
+  // A deep-linked video starts without anyone pressing anything, so there is no handler to hang the
+  // capture on — the mount is the play.
   useEffect(() => {
     if (!deepLinked) return;
-    posthog.capture("video_played", {
-      lesson_slug: lessonSlug,
-      start_seconds: startSeconds,
-      autostarted: true,
-    });
-  }, [deepLinked, lessonSlug, startSeconds]);
+    capturePlay("deep_link");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fires once per deep-linked lesson.
+  }, [deepLinked, lessonSlug]);
+
+  useWatchDepth({
+    isPlaying,
+    lessonSlug,
+    courseSlug,
+    lessonLabel,
+    provider: video?.provider ?? null,
+    durationSeconds,
+    startSeconds,
+  });
 
   const play = () => {
     setIsPlaying(true);
-    posthog.capture("video_played", {
-      lesson_slug: lessonSlug,
-      start_seconds: startSeconds,
-      autostarted: false,
-    });
+    capturePlay("poster_click");
   };
 
   return (

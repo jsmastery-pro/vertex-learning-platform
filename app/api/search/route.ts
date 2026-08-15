@@ -11,7 +11,9 @@ import {
   ModelAnswerSchema,
   SearchRequestSchema,
   type SearchResponse,
+  type SearchSort,
 } from "@/lib/search/types";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 /**
@@ -52,7 +54,9 @@ export async function POST(request: NextRequest) {
     return errorResponse(400, "Expected { query: string, sort?: 'relevance' | 'newest' | 'duration' }.");
   }
 
-  const { query, sort } = parsedRequest.data;
+  const { query, sort, distinctId, sessionId } = parsedRequest.data;
+  const analytics = { distinctId, sessionId };
+  const startedAt = Date.now();
 
   let mcpClient: MCPClient | null = null;
 
@@ -94,7 +98,7 @@ export async function POST(request: NextRequest) {
       results,
     };
 
-    await captureSearch(query, response);
+    await captureSearch(response, analytics, Date.now() - startedAt);
 
     return Response.json(response);
   } catch (error) {
@@ -102,7 +106,18 @@ export async function POST(request: NextRequest) {
     console.error("[api/search]", error);
 
     const message = error instanceof Error ? error.message : "";
-    if (message.startsWith("Missing environment variable")) {
+    const unconfigured = message.startsWith("Missing environment variable");
+
+    // Only the coarse reason reaches PostHog — the message itself is as unsafe to send as it is to
+    // return.
+    await captureSearchFailure(
+      { query, sort },
+      unconfigured ? "unconfigured" : "upstream",
+      analytics,
+      Date.now() - startedAt,
+    );
+
+    if (unconfigured) {
       return errorResponse(500, "Search is not configured.");
     }
 
@@ -112,22 +127,92 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/** The browser's own PostHog ids, so a server event joins the session it came from. */
+interface AnalyticsIdentity {
+  distinctId?: string;
+  sessionId?: string;
+}
+
+/**
+ * Resolves who the event belongs to. A signed-in learner is always their Clerk user id — that is
+ * what `PostHogUserIdentifier` calls `identify` with, so the server and browser agree on one person.
+ * The client-supplied id is the signed-out fallback and is never trusted beyond attribution.
+ */
+async function resolveIdentity({ distinctId, sessionId }: AnalyticsIdentity) {
+  const { userId } = await auth();
+
+  return {
+    distinctId: userId ?? distinctId ?? "anonymous",
+    signedIn: Boolean(userId),
+    // `$session_id` is what stitches this event into the learner's client session, which is what
+    // makes "searched, then never opened a lesson" answerable.
+    sessionProperties: sessionId ? { $session_id: sessionId } : {},
+  };
+}
+
 /** "A search performed" is one of the engagement moments §7 asks for. */
-async function captureSearch(query: string, response: SearchResponse) {
+async function captureSearch(
+  response: SearchResponse,
+  identity: AnalyticsIdentity,
+  durationMs: number,
+) {
   const posthog = getPostHogClient();
   if (!posthog) return;
 
-  const { userId } = await auth();
+  const { distinctId, signedIn, sessionProperties } = await resolveIdentity(identity);
+  const videoResultCount = response.results.filter((result) => result.kind === "video").length;
 
   posthog.capture({
-    distinctId: userId ?? "anonymous",
-    event: "search_performed",
+    distinctId,
+    event: ANALYTICS_EVENTS.searchPerformed,
     properties: {
-      query,
+      ...sessionProperties,
+      query: response.query,
       sort: response.sort,
       result_count: response.count,
       course_count: response.courseCount,
-      video_result_count: response.results.filter((result) => result.kind === "video").length,
+      video_result_count: videoResultCount,
+      lesson_result_count: response.count - videoResultCount,
+      zero_results: response.count === 0,
+      duration_ms: durationMs,
+      signed_in: signedIn,
     },
   });
+
+  // A route handler is torn down per invocation, and `capture` only enqueues. Without this the send
+  // never happens and the event is silently lost.
+  await posthog.flush();
+}
+
+/** A search that never produced results is as much a signal as one that did. */
+async function captureSearchFailure(
+  { query, sort }: { query: string; sort: SearchSort },
+  reason: "unconfigured" | "upstream",
+  identity: AnalyticsIdentity,
+  durationMs: number,
+) {
+  const posthog = getPostHogClient();
+  if (!posthog) return;
+
+  try {
+    const { distinctId, signedIn, sessionProperties } = await resolveIdentity(identity);
+
+    posthog.capture({
+      distinctId,
+      event: ANALYTICS_EVENTS.searchFailed,
+      properties: {
+        ...sessionProperties,
+        query,
+        sort,
+        reason,
+        duration_ms: durationMs,
+        signed_in: signedIn,
+      },
+    });
+
+    await posthog.flush();
+  } catch (error) {
+    // Already on the failure path — analytics must not replace the learner's error with its own.
+    console.error("[api/search] failed to capture search_failed", error);
+  }
 }

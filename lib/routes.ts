@@ -20,3 +20,17 @@ export function lessonHref(slug: string, startSeconds?: number | null) {
 
 /** The query parameter carrying the start second on a lesson URL. */
 export const START_SECONDS_PARAM = "t";
+
+/** The search page's query parameters. The URL is the single source of truth for a search. */
+export const SEARCH_QUERY_PARAM = "q";
+export const SEARCH_SORT_PARAM = "sort";
+
+/**
+ * `/search?q=data+fetching`. The sort is omitted when it is the default, so a plain search from the
+ * header produces the shortest shareable URL.
+ */
+export function searchHref(query: string, sort?: string | null) {
+  const params = new URLSearchParams({ [SEARCH_QUERY_PARAM]: query });
+  if (sort && sort !== "relevance") params.set(SEARCH_SORT_PARAM, sort);
+  return `/search?${params.toString()}`;
+}

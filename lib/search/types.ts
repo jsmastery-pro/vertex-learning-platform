@@ -20,9 +20,25 @@ export const MAX_QUERY_LENGTH = 200;
 /** Bounds the grounding query. The model is told not to truncate; this is a defensive ceiling. */
 export const MAX_RESULTS = 100;
 
+/**
+ * PostHog ids are opaque strings (a UUID, or whatever `identify` was called with). This is a
+ * defensive ceiling on a spoofable, purely-attributional field, not a format check.
+ */
+const MAX_ANALYTICS_ID_LENGTH = 200;
+
 export const SearchRequestSchema = z.object({
   query: z.string().trim().min(1).max(MAX_QUERY_LENGTH),
   sort: z.enum(SORTS).default("relevance"),
+  /**
+   * The browser's own PostHog distinct id and session id. Search runs on the server, so without
+   * these every signed-out search would land on one shared "anonymous" person, and the server event
+   * could never be joined to the client session it came from.
+   *
+   * Both are attribution only. They are never trusted for authorisation, and the Clerk user id
+   * always wins as the distinct id when the request is authenticated.
+   */
+  distinctId: z.string().trim().min(1).max(MAX_ANALYTICS_ID_LENGTH).optional(),
+  sessionId: z.string().trim().min(1).max(MAX_ANALYTICS_ID_LENGTH).optional(),
 });
 
 export type SearchRequest = z.infer<typeof SearchRequestSchema>;
@@ -74,6 +90,8 @@ const SearchResultBaseSchema = z.object({
   moduleTitle: z.string().nullable(),
   courseTitle: z.string(),
   courseSlug: z.string(),
+  /** Sanity image asset ref for the course cover, used as the small course tile on a card. */
+  courseIconRef: z.string().nullable(),
   /** Lesson runtime in seconds. */
   durationSeconds: z.number().nullable(),
   freePreview: z.boolean(),

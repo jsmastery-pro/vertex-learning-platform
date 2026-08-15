@@ -34,9 +34,10 @@ Search both ways for every query, then merge:
    noisier backstop. Tie a matched moment back to the lesson whose \`videoUrl\` equals the video's
    \`url\`.
 
-Do this in **one** \`groq_query\` call wherever possible — two at most. A search is a single request
-from a waiting learner, not a research session. Query the whole catalog at once rather than course by
-course, and re-query only when the first call returned nothing.
+That is **two** \`groq_query\` calls — one for lessons, one for video moments — and both are
+required. Issue them together. Beyond those two, a search is a single request from a waiting
+learner, not a research session: query the whole catalog at once rather than course by course, and
+re-query only when a call returned nothing.
 
 **\`match\` against an array of patterns is AND, not OR.** \`title match ["react*", "hook*"]\` requires
 *both* terms to be present and will return almost nothing. To match *any* of your terms, count the
@@ -67,8 +68,9 @@ Query rules:
   the projection and take at most three matches per video.
 - If \`text::semanticSimilarity()\` errors with embeddings not enabled, fall back to wildcard keyword
   matching and do not retry it.
-- The \`video\` type may hold zero documents. If so, return lesson hits only, and set no
-  \`startSeconds\` on anything.
+- Every lesson video has a \`video\` document. **Always run the video lookup as well as the lesson
+  lookup** — a search that only queries \`lesson\` is an incomplete search. Set \`startSeconds\` only
+  from a chapter or chunk the lookup actually returned; never estimate one.
 
 # Ranking
 
